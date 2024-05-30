@@ -1,14 +1,20 @@
-import {
-  FileOutlined,
-  PieChartOutlined,
-  TeamOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
-import {Breadcrumb, Layout, Menu} from 'antd';
+import {PieChartOutlined} from '@ant-design/icons';
+import {Breadcrumb, Layout, Menu, Avatar, Badge} from 'antd';
 import React, {useState} from 'react';
 import {connect} from 'dva';
-import WkGrid from  '../components/WkGrid';
+import {
+  UserPageComp,
+  OperateLogComp,
+  ResourceComp,
+  RoleManageComp,
+  SYS_MANAGE,
+  SELF_MANAGE
+} from  '../services/page-comps';
 import styles from './IndexPage.css';
+import {confirm} from '../services/common';
+import ModifyPasswordComp from '../components/ModifyPasswordComp';
+import SelfInfoComp from '../components/SelfInfoComp';
+import WkDrawer from '../components/WkDrawer';
 
 
 const {Header, Content, Footer, Sider} = Layout;
@@ -16,55 +22,25 @@ const {Header, Content, Footer, Sider} = Layout;
 const choosePage = (firstMenuKey, secondMenuKey) => {
 
   if (secondMenuKey === '_userManage') {
-    return <WkGrid
-      search={[{
-        name: 'username',
-        label: '用户名',
-      }, {
-        name: 'realname',
-        label: '真实姓名',
-      }]}
-      header={[{
-        name: 'id',
-        label: 'ID'
-      }, {
-        name: 'username',
-        label: '用户名'
-      }, {
-        name: 'realname',
-        label: '真实姓名'
-      }, {
-        name: 'mobile',
-        label: '手机号'
-      }, {
-        name: 'userType',
-        label: '用户类型',
-        render(name){
-          return name === 'ADMIN' ? '管理员' : '普通用户'
-        }
-      }, {
-        name: 'status',
-        label: '状态',
-        render(name){
-          return name === 'IN_USE' ? "有效" : (name === 'LOCK' ? '已锁定' : '已删除')
-        }
-      }, {
-        name: 'company',
-        label: '公司'
-      }]}
-      addUrl="/user/add"
-      editUrl="/user/edit"
-      queryUrl="/user/query"
-
-    />
+    return <UserPageComp />;
+  } else if (secondMenuKey === '_modifyPassword') {
+    return <ModifyPasswordComp/>
+  } else if (secondMenuKey === '_userInfo') {
+    return <SelfInfoComp/>
+  } else if (secondMenuKey === '_operateLog') {
+    return <OperateLogComp />;
+  } else if (secondMenuKey === '_resourceManage') {
+    return <ResourceComp />
+  } else if (secondMenuKey === '_roleManage') {
+    return <RoleManageComp />
   }
 
   return null;
-}
+};
 
 const App = ({index, dispatch}) => {
 
-  const {user, resources, firstMenuKey, secondMenuKey} = index;
+  const {user, resources, firstMenuKey = '_userCenter', secondMenuKey = '_userInfo'} = index;
 
   const items = [...(resources || []).map(r => {
     return {
@@ -78,37 +54,16 @@ const App = ({index, dispatch}) => {
   })];
 
   if (user.userType === 'ADMIN') {
-    items.push({
-      key: '_systemManage',
-      label: '系统管理',
-      icon: <TeamOutlined />,
-      children: [{
-        key: '_userManage',
-        label: '用户管理',
-        icon: <UserOutlined />
-      }, {
-        key: '_resourceManage',
-        label: '资源管理',
-        icon: <FileOutlined />
-      }, {
-        key: '_roleManage',
-        label: '角色管理',
-        icon: <TeamOutlined />
-      }]
-    })
+    items.push(SYS_MANAGE)
   }
-
-  items.push({
-    key: '_userCenter',
-    label: '个人中心',
-    icon: <UserOutlined />
-  });
+  items.push(SELF_MANAGE);
 
   const firstMenu = firstMenuKey ? items.find(it => it.key === firstMenuKey) : null,
     secondMenu = firstMenu && firstMenu.children && firstMenu.children.length > 0 ? firstMenu.children.find(it => it.key === secondMenuKey) : null;
 
 
   const [collapsed, setCollapsed] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
     <Layout
@@ -117,9 +72,44 @@ const App = ({index, dispatch}) => {
       }}
     >
       <Sider collapsible collapsed={collapsed} onCollapse={(value) => setCollapsed(value)}>
-        <div className={styles.logo}>欢迎您，{user.username}</div>
-        <Menu theme="dark" defaultSelectedKeys={[firstMenu.key]} mode="inline" items={items}
+        <div className={styles.logo}>
+          <Badge count={user.unReadMessageCount || 0}>
+            <Avatar
+              style={{
+                backgroundColor: '#f56a00',
+                verticalAlign: 'middle',
+                cursor: 'pointer'
+              }}
+              size="large"
+              gap={4}
+              onClick={() => {
+                setDrawerOpen(true);
+              }}
+            >
+              {user && user.realname ? user.realname.substring(user.realname.length - 1) : null}
+            </Avatar>
+          </Badge>
+
+
+          <WkDrawer open={drawerOpen} onClose={() => {
+            setDrawerOpen(false);
+          }}/>
+        </div>
+        <Menu theme="dark" defaultSelectedKeys={[secondMenu ? secondMenu.key : firstMenu.key]} mode="inline"
+              items={items}
+              onClick={({keyPath}) => {
+                if (keyPath.length === 2 && keyPath[0] === '_logout') {
+
+                  confirm('确定注销吗？', () => {
+                    dispatch({type: 'index/logout'});
+                  });
+                }
+              }}
               onSelect={({key, keyPath}) => {
+
+                if (keyPath.length === 2 && keyPath[0] === '_logout') {
+                  return false;
+                }
                 dispatch({
                   type: 'index/gotoPage', payload: {
                     firstMenuKey: keyPath.length === 2 ? keyPath[1] : keyPath[0],

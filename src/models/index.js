@@ -1,4 +1,4 @@
-import {login, currentUser, formatResource} from '../services/user-service';
+import {login, logout, currentUser, formatResource} from '../services/user-service';
 import $ from 'jquery';
 
 export default {
@@ -32,7 +32,7 @@ export default {
       }]
     }],
     firstMenuKey: '_userCenter',
-    secondMenuKey: null,
+    secondMenuKey: '_userInfo',
   },
 
   subscriptions: {
@@ -42,9 +42,14 @@ export default {
         xhrFields: {
           withCredentials: true
         },
+        crossDomain: true,
         complete(xhr, status){
 
           console.log('xhr:', xhr);
+          const res = xhr.responseJSON;
+          if (res && !res.success && res.message && res.message.indexOf('您还没有登录') >= 0) {
+            dispatch({type: 'index/save', payload: {user: null}})
+          }
         }
       });
 
@@ -73,7 +78,12 @@ export default {
       if (user) {
         yield put({type: 'save', payload: {user, resources: formatResource(user.resources)}})
       }
+    },
+    *logout({payload}, {call, put}){
 
+      yield logout();
+
+      yield put({type: 'save', payload: {user: null, resources: null}})
     }
   },
 

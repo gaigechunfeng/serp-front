@@ -8,12 +8,12 @@ export function formatResource(resources) {
     return [];
   }
 
-  return resources.filter(r => r.level === 1).map(r => {
+  return resources.filter(r => r.pid === 0).map(r => {
 
     return {
       name: r.name,
       desc: r.description,
-      children: (resources.filter(cr => cr.parentId === r.id).map(cr => {
+      children: (resources.filter(cr => cr.pid === r.id).map(cr => {
         return {
           name: cr.name,
           desc: cr.description
@@ -25,7 +25,7 @@ export function formatResource(resources) {
 
 export async function currentUser() {
 
-  const res = await $.get(baseUrl + '/user/current', {}, (res) => {
+  const res = await $.get(baseUrl + '/self/current', {}, (res) => {
     return res
   }, 'JSON');
 
@@ -60,4 +60,18 @@ export async function login(username, password) {
 
   return res.obj;
 
+}
+
+export async function logout() {
+
+  const res = await $.post(baseUrl + '/user/logout', {}, (res) => {
+    return res
+  }, 'JSON');
+
+  if (!res.success) {
+    error('注销失败！' + res.message);
+    return;
+  }
+
+  success('注销成功');
 }
